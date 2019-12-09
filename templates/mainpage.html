@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <link rel="stylesheet" href="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://cdn.staticfile.org/jquery/2.1.1/jquery.min.js"></script>
+    <script src="https://cdn.staticfile.org/twitter-bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <link rel="stylesheet" type="text/css" href="static/css/chat.css">
+    <title>Chat App</title>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-lg-3" id="listInfo" style = "box-shadow: inset -2px 0 0 #E4E1E0; height: 100vh">
+            <h3 style="margin-bottom: 40px; text-align: center; font-weight: bold">Chat Room</h3>
+            <div class="input-group" id = "searchbox" style="width: 70%; margin-left: 15%; height: 10px; margin-top: 200px">
+                <input type="text" class="form-control" name = "roomnum" placeholder="搜索并加入聊天室" style=" border-top-left-radius: 10px; border-bottom-left-radius: 10px">
+                <span class="input-group-btn">
+                    <button class="btn btn-default" type="button" id = "newroom"  style=" border-top-right-radius: 10px; border-bottom-right-radius: 10px">+</button>
+                </span>
+            </div>
+            <div id = "chatInfo"  hidden style = "width: 100%">
+                <div class="card bg-light text-dark" id = "card" style="width: 80%; margin-left: 10%; margin-top: 100px; border-radius: 5px; border: darkgray; border-width: 1px">
+                    <div class="card-header" id="card_header" style="text-align: center; font-size: 17px; padding-bottom: 10px"></div>
+                    <div class="card-body" id="card_body" style="text-align: center; font-size: 16px"></div>
+                </div>
+                <buton class="btn btn-danger" id = "quit" type="button" style="width: 30%; margin-left: 30%; margin-top: 100px">退出</buton>
+            </div>
+        </div>
+        <div class="col-lg-9" id="chatArea" hidden style="height: 100vh; padding: 0;">
+            <div class="chatBox-content-demo" style="padding: 10px">
+                <!--
+                <div class="clearfloat">
+                    <div class="author-name">
+                        <small class="chat-date">2017-12-02 14:26:58</small>
+                    </div>
+                    <div class="left">
+                        <span class="author-name"> A </span>
+                        <br>
+                        <div class="chat-message"> 啦啦啦 </div>
+                    </div>
+                </div>
+                <div class="clearfloat">
+                    <div class="author-name">
+                        <small class="chat-date">2017-12-02 14:26:58</small>
+                    </div>
+                    <div class="right">
+                        <div class="chat-message">喵喵喵</div>
+                    </div>
+                </div>
+                -->
+            </div>
+            <div style="position: absolute; bottom: 10px">
+                <hr />
+                <div class="input-group" style="width: 70%; margin-left: 15%; height: 10px;">
+                    <input type="text" class="form-control" name = "chatInput" placeholder="请输入.." style=" border-top-left-radius: 10px; border-bottom-left-radius: 10px">
+                    <span class="input-group-btn">
+                        <button class="btn btn-primary" type="button" id = "newmessage" style=" border-top-right-radius: 10px; border-bottom-right-radius: 10px">发送</button>
+                        <button class="btn btn-primary" type="button" id = "newimg" style=" border-top-right-radius: 10px; border-bottom-right-radius: 10px">发送图片</button>
+                        <button class="btn btn-primary" type="button" id = "newfile" style=" border-top-right-radius: 10px; border-bottom-right-radius: 10px">发送文件</button>
+                        <button class="btn btn-primary" type="button" id = "newvideo" style=" border-top-right-radius: 10px; border-bottom-right-radius: 10px">发送视频</button>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="roomModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <h4 style="font-weight: bold; margin-left: 15%">请输入你此次的昵称</h4>
+                    <input type="text" id = "nickName" class="form-control" placeholder="请输入昵称" style="width: 60%; margin-left: 20%; margin-bottom: 20px; margin-top: 30px">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                    <button type="button" id = "ConfirmEnter" class="btn btn-primary">确定</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+    
+    <div class="modal fade" id="imgModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <h4 style="font-weight: bold; margin-left: 15%">请选择图片的路径</h4>
+                    <input type = "file" id="img" multiple = "multiple" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">取消</button>
+                    <button type="button" id = "ConfirmImg" class="btn btn-primary">确定</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+</div>
+
+<style type="text/css">
+    body { height: 100%; padding: 0; margin: 0; }
+</style>
+</body>
+<script type="text/javascript">
+
+var ws = new WebSocket("ws://localhost:8888");
+
+function buildMessage(content, type) {
+    console.log({ "content": content, "type": type });
+    return JSON.stringify({ "content": content, "type": type });
+}
+
+$('#roomModal').on('show.bs.modal', function() {
+    $('#roomModal').each(function(i) {
+　　　　var $clone = $(this).clone().css('display','block').appendTo('body');
+　　　　var top = Math.round(($clone.height() - $clone.find('.modal-content').height()) / 2);
+　　　　top = top > 0 ? top : 0;
+　　　　$clone.remove();
+　　　　$(this).find('.modal-content').css("margin-top", top);
+　　});
+});
+
+$('#imgModal').on('show.bs.modal', function() {
+    $('#imgModal').each(function(i) {
+　　　　var $clone = $(this).clone().css('display','block').appendTo('body');
+　　　　var top = Math.round(($clone.height() - $clone.find('.modal-content').height()) / 2);
+　　　　top = top > 0 ? top : 0;
+　　　　$clone.remove();
+　　　　$(this).find('.modal-content').css("margin-top", top);
+　　});
+});
+
+var image = new Image();
+var base64 = null;
+
+$("#ConfirmEnter").click(function() {
+    var nickName = $("#nickName").val();
+    var num = $("input[name = 'roomnum'] ").val();
+    console.log(num);
+    console.log(nickName);
+    var str_for_send = buildMessage(num + ";" + nickName, "Enter");
+    ws.send(str_for_send);
+    $('#roomModal').modal('hide');
+});
+
+function getBase64Image(img) {
+     var canvas = document.createElement("canvas");
+     canvas.width = img.width;
+     canvas.height = img.height;
+     var ctx = canvas.getContext("2d");
+     ctx.drawImage(img, 0, 0, img.width, img.height);
+     var ext = img.src.substring(img.src.lastIndexOf(".")+1).toLowerCase();
+     var dataURL = canvas.toDataURL("image/"+ext);
+     return dataURL;
+}
+
+// 得到Base64码
+image.onload = function(){
+  base64 = getBase64Image(image);
+  console.log("base64: " + base64);
+};
+
+$("#ConfirmImg").click(function() {
+    //var decode = atob(base64);
+    var data_sent = base64;//decodeURI(decode);
+    var str_for_send = buildMessage(data_sent, "Picture");
+    ws.send(str_for_send);
+    $('#imgModal').modal('hide');
+});
+
+$("#img").change(function(){
+    image.src = getObjectURL(this.files[0]);
+    //console.log("objUrl = "+objUrl) ;
+    {#if (urlpath) {#}
+    {#    $("#imgShow").attr("src", image.src) ;#}
+    {##}
+}) ;
+
+//取得该文件的url
+function getObjectURL(file) {
+    var url = null;
+    if (window.createObjectURL != undefined)
+        url = window.createObjectURL(file);
+    else if (window.URL != undefined)
+        url = window.URL.createObjectURL(file);
+    else if (window.webkitURL != undefined)
+        url = window.webkitURL.createObjectURL(file) ;
+    return url;
+}
+
+$("#newroom").click(function (){
+    $('#roomModal').modal("show");
+});
+
+$("#newimg").click(function() {
+    $('#imgModal').modal("show");
+});
+
+$("#newmessage").click(function() {
+   var message = $("input[name='chatInput']").val();
+   if (message === "") {
+   } else {
+       console.log(buildMessage(message, "Talk"));
+       ws.send(buildMessage(message, "Talk"));
+   }
+});
+
+$("#quit").click(function() {
+    $(".chatBox-content-demo").html("");
+    $("#chatArea").toggle();
+    $("#searchbox").toggle();
+    $("#chatInfo").toggle();
+    ws.send(buildMessage("", "Quit"));
+});
+
+ws.onmessage = function(response) {
+    var evt = JSON.parse(response.data);
+    console.log(evt);
+    var tp = evt.type;
+    console.log(tp);
+    var id = evt.roomid;
+    var num = evt.number;
+    var textContent = evt.text;
+    var sender = evt.sender;
+    var self_send = evt.self_send;
+
+    var myDate = new Date();
+    var m = myDate.getMonth() + 1;
+    var currentTime = myDate.getFullYear() + "-" + m + "-" + myDate.getDate() + " " + myDate.getHours() + ":" + myDate.getMinutes() + ":" + myDate.getSeconds();
+
+    if (tp === "Quit") {
+        console.log("Get");
+        if (self_send == false) {
+            console.log(num, self_send);
+            $("#card_body").text("人数： " + num);
+
+            $(".chatBox-content-demo").append("<div class=\"clearfloat\">" +
+                "<div class=\"author-name\"><small class=\"chat-date\">" +
+                sender + "退出了群聊" +
+                "</small> </div> </div>");
+        }
+    }
+    else if (tp == "Enter") {
+        console.log(id, num);
+        $("#card_header").text("聊天室： " + id);
+        $("#card_body").text("人数： " + num);
+
+        if (self_send == 1) {
+            $("#chatInfo").toggle();
+            $("#chatArea").toggle();
+            $("#searchbox").toggle();
+        }
+
+        $(".chatBox-content-demo").append("<div class=\"clearfloat\">" +
+                "<div class=\"author-name\"><small class=\"chat-date\">" +
+                sender + "进入了群聊" +
+                "</small> </div> </div>");
+    }
+    else if (tp === "Talk") {
+        if (self_send == true)
+            $(".chatBox-content-demo").append("<div class=\"clearfloat\">" +
+                "<div class=\"author-name\"><small class=\"chat-date\">" +
+                currentTime +
+                "</small> </div> " +
+                "<div class=\"right\"> <div class=\"chat-message\"> "+
+                textContent + " </div> </div> </div>");
+        else
+            $(".chatBox-content-demo").append("<div class=\"clearfloat\">" +
+                "<div class=\"author-name\"><small class=\"chat-date\">" +
+                currentTime +
+                "</small> </div> " +
+                "<div class=\"left\"> <span class=\"author-name\">" +
+                sender + "</span> <br> <div class=\"chat-message\"> "+
+                textContent + " </div> </div> </div>");
+
+        $("input[name = 'chatInput'] ").val("");
+        $(document).ready(function () {
+            $(".chatBox-content-demo").scrollTop($(".chatBox-content-demo")[0].scrollHeight);
+        });
+    }
+    else if (tp === "Picture") {
+        if (self_send == true)
+            $(".chatBox-content-demo").append("<div class=\"clearfloat\">" +
+                "<div class=\"author-name\"><small class=\"chat-date\">" +
+                currentTime +
+                "</small> </div> " +
+                "<div class=\"right\"> <div class=\"chat-message\"> "+
+                "<img src=" + textContent + "></div>" + " </div> </div> </div>");
+        else
+            $(".chatBox-content-demo").append("<div class=\"clearfloat\">" +
+                "<div class=\"author-name\"><small class=\"chat-date\">" +
+                currentTime +
+                "</small> </div> " +
+                "<div class=\"left\"> <span class=\"author-name\">" +
+                sender + "</span> <br> <div class=\"chat-message\"> "+
+                "<img src=" + textContent + "></div>" + " </div> </div> </div>");
+
+        $("input[name = 'chatInput'] ").val("");
+        $(document).ready(function () {
+            $(".chatBox-content-demo").scrollTop($(".chatBox-content-demo")[0].scrollHeight);
+        });
+    }
+};
+
+</script>
+
+</html>
