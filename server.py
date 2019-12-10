@@ -35,7 +35,7 @@ def recv_data(all_data):
 
 
 def writedata(msg):
-    data = struct.pack('B', 129)
+    data = struct.pack('B', 129) # 将129转为16进制 data = b'\x81'
 
     length = len(msg)
     if length < 126:
@@ -94,15 +94,18 @@ class Server:
         self.__nicknames.append('System')
         self.__rooms.append(None)
 
-        # 开始侦听
+        # 开始侦听：用于接收每一个客户端线程，和它们进行三次握手
         while True:
             connection, address = self.__socket.accept()
+            # getsockname() ('127.0.0.1', 8888) fileno() 440 address ('127.0.0.1', 56943)
             print('[Server] 收到一个新连接', connection.getsockname(), connection.fileno(), address)
             self.__connections.append(connection)
             # self.__nicknames.append(obj['nickname'])
             # self.__rooms.append(obj['id'])
+
+            # 握手流程
             shake = connection.recv(1024).decode()
-            headers = {}
+            headers = {} # 协议头
             print(shake)
             header, data = shake.split('\r\n\r\n', 1)
 
@@ -110,22 +113,38 @@ class Server:
                 key, val = line.split(': ', 1)
                 headers[key] = val
 
-            sec_key = headers['Sec-WebSocket-Key']
-            res_key = base64.b64encode(hashlib.sha1((sec_key + MAGIC_STRING).encode()).digest()).decode()
-            str_handshake = HANDSHAKE_STRING.replace('{1}', res_key).replace('{2}', HOST + ':' + str(PORT)).encode()
-            connection.send(str_handshake)
+            sec_key = headers['Sec-WebSocket-Key'] # 获取协议头里的socket-key
+            res_key = base64.b64encode(hashlib.sha1((sec_key + MAGIC_STRING).encode()).digest()).decode() # 使用bs64解码，注意HANDSHAKE_STRING是解密socket-key时需要的辅助字符串，是固定的
+            str_handshake = HANDSHAKE_STRING.replace('{1}', res_key).replace('{2}', HOST + ':' + str(PORT)).encode() # 生成握手回复信息
+            connection.send(str_handshake) # 把握手回复信息发送给客户端 完成握手
             # connection.send('\
             # HTTP/1.1 101 Switching Protocols\r\n\
             # Upgrade: webSocket\r\n\
             # Connection: Upgrade\r\n\
             # Sec-WebSocket-Accept: %s\r\n\r\n' % token)
 
-            # 开辟一个新的线程
+            # 开辟一个新的线程，用于监听客户端
             thread = threading.Thread(target=self.__user_thread, args=(len(self.__connections) - 1,))
             thread.setDaemon(True)
             thread.start()
+    def __sendfile(self, user_id, content, type):
+        mes = b''
+        try:
+            file = open(str(content),'rb')
+            mes = file.read()
+        except:
+            print('error{}'.format(str(content)))
+        else:
+            file.close()
+        return mes
 
     def __broadcast(self, user_id, content, type):
+        """
+        广播函数，用于向所有线程的客户端发送消息
+        比如，有一个新人进入了房间，需要告诉所有的客户端，从而刷新前端
+        用于你的文件管理系统的话，比如有一个客户端上传了新文件，则调用这个广播函数让所有客户端刷新界面，才能看到新文件
+        """
+
         nickname = self.__nicknames[user_id]
         room_id = self.__rooms[user_id]
         room_num = 0
@@ -133,7 +152,7 @@ class Server:
             if self.__rooms[i] == room_id:
                 room_num += 1
 
-        if type == 'Enter':  # 新用户登入
+        if type == 'Enter':  # 新用户登入房间
             for i in range(1, len(self.__rooms)):
                 if self.__rooms[i] == room_id and self.__rooms is not None:
                     if i != user_id:
@@ -145,6 +164,7 @@ class Server:
                         #     'sender': nickname,
                         #     'self_send': 1
                         # })))
+                        # json.dumps将python对象格式化成json字符.
                         self.__connections[i].send(writedata(json.dumps({
                             'type': 'Enter',
                             'roomid': room_id,
@@ -176,7 +196,7 @@ class Server:
                             'self_send': 0
                         })))
 
-        elif type == 'Picture':  # 用户发消息
+        elif type == 'Picture':  # 用户发图片消息
             for i in range(1, len(self.__rooms)):
                 if self.__rooms[i] == room_id and self.__rooms is not None:
                     if i == user_id:
@@ -228,6 +248,9 @@ class Server:
 
 
     def __user_thread(self, user_id):
+        """
+        客户端线程，即每当用户登入聊天室后，都会执行这个函数
+        """
         connection = self.__connections[user_id]
         self.__nicknames.append(user_id)
         self.__rooms.append(None)
@@ -241,7 +264,7 @@ class Server:
                 buffer = connection.recv(1024 * 1024)
                 raw_str = recv_data(buffer)
                 print(raw_str)
-                if buffer[:3] != 'GET':
+                if buffer[:3] != 'GET': # 如果是GET请求
                     # 解析成json数据
                     obj = json.loads(raw_str)
                     print("JSON String %s" % obj)
@@ -281,8 +304,8 @@ class Server:
 
                     elif obj['type'] == 'Talk':
                         self.__broadcast(user_id, obj['content'], obj['type'])
+                        self.__sendfile(user_id, obj['content'], obj['type'])
                     elif obj['type'] == 'Picture':
-
                         self.__broadcast(user_id, obj['content'], obj['type'])
                     elif obj['type'] == 'Quit':
                         room_id = self.__rooms[user_id]
