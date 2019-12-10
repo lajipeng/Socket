@@ -30,7 +30,7 @@ class fileClient:
         while True:
             data = self.sock.recv(4096).decode()
             if data == 'EOF':
-                print(888)
+                print('copy it!')
                 break
             f.write(data.encode())
         f.close()
@@ -45,8 +45,8 @@ class fileClient:
                 break
             self.sock.sendall(data)
         f.close()
-        time.sleep(0.5)
-        # self.sock.sendall('EOF'.encode())
+        time.sleep(1)
+        self.sock.sendall('EOF'.encode())
 
     def recvImage(self, filename):
         f = open(filename, 'wb')
@@ -54,7 +54,7 @@ class fileClient:
             data = self.sock.recv(1024)
             print(data)
             if data == b'EOF':
-                print(888)
+                print('copy it')
                 break
             f.write(data)
         f.close() 
@@ -94,7 +94,6 @@ class fileClient:
         if not command:
             return
         action, filename, filetype = command.split()
-        print(action, filename, filetype)
         if action == 'put':
             if filetype == 'txt':
                 if self.confirm(command):
@@ -135,5 +134,24 @@ class fileClient:
 
 if __name__ == '__main__':
     fc = fileClient()
-    fc.connect('192.168.1.103', 1010)
-    fc.input('get 1.avi video')
+    IP_fileManager = input("Please into the fileManager IP：")
+    print ("Connecting: ", IP_fileManager)
+    fc.connect(IP_fileManager, 1010)
+    nameClient = input("Please input your username：")
+    passWord = input("Please input your password：")
+    print("Loading...")
+    print("Welcome back！",nameClient)
+    try:
+        while True:
+            command = input("Please input your command：(put/get filename.txt/jpg/avi txt/jpg/video)\n")
+            fc.input(command)
+            YN = input("Do you want to continue?(Y/N)\n")
+            if(YN == 'N'):
+                break
+            elif(YN == 'Y'):
+                continue
+            else:
+                print("Input error! Quit")
+                break
+    except:
+        print('error! Quit')

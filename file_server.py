@@ -18,7 +18,6 @@ class FileTcpServer(socketserver.BaseRequestHandler):
                 print("recv success")
                 break
             f.write(data.encode())
-            print(2)
         f.close()
                                        
     def sendfile(self, filename):
@@ -45,17 +44,14 @@ class FileTcpServer(socketserver.BaseRequestHandler):
     def recvImage(self, filename):
         print("start recv")
         f = open(filename, 'wb')
-        print(1)
         self.request.send('ready'.encode())
-        print(1)
         while True:
             data = self.request.recv(1024)
             print(data)
-            if len(data) == 0:
+            if data == b'EOF':
                 print("recv success")
                 break
             f.write(data)
-            print(2)
         f.close()
     def sendImage(self, filename):
         print("start send")
